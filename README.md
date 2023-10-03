@@ -86,9 +86,11 @@ rm GRCm38.p4.genome.fa.gz
 rm GRCm38.p4.genome.fa
 ```
 
-The above script will build hisat2 index in RNAseqPE/hisat2Index/. This script is included in RNAseqPE/hisat2Index/hisat2Index.sh for easy reference
+The above script will build hisat2 index in RNAseqPE/hisat2Index/. 
 
-Note the building hisat2 index is RAM and time consuming. please allocate enough resources.
+This script is included in RNAseqPE/hisat2Index/hisat2Index.sh for easy reference.
+
+Note that building hisat2 index is RAM and time consuming. please allocate enough resources.
 
 To use the index:
 ```
