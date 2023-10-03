@@ -46,110 +46,83 @@ export PATH=$PATH:/Where RNAseqPE is/RNAseqPE
 ```
 
 3, Add executable permissions
-
 ```
 chmod +x /Where RNAseqPE is/RNAseqPE/RNAseqPE.sh
 chmod +x /Where RNAseqPE is/RNAseqPE/hisat2Index/hisat2Index.sh
 ```
 
 4, Set up index files for genome mapping
-To use RNAseqPE, hisat2 index is required to map reads to the corresponding genome 
-
-
-is used for mapping in this pipeline
-
-2a, Download whole genome fasta sequence and chromosome sizes from UCSC goldenpath:
-
+To use RNAseqPE, hisat2 index is required to map reads to the corresponding genome.
+Here is an example to build hisat2 index for hg38 and mm10
 ```
-cd PipelineHomeDir/mm10/Sequence
-wget http://hgdownload.cse.ucsc.edu/goldenPath/mm10/bigZips/mm10.fa.gz
-gunzip *.gz
-wget "http://hgdownload.cse.ucsc.edu/goldenPath/mm10/bigZips/mm10.chrom.sizes" -O mm10.ChromInfo.txt
-```
+# build hisat2 index in RNAseqPE/hisat2Index
+cd /Where RNAseqPE is/RNAseqPE/hisat2Index/
 
-2b, Extract RNA sequences
-```
-cd PipelineHomeDir/mm10/Annotation
-gunzip *.gz
-cd ../Sequence
-bedtools getfasta -s -split -name -fi mm10.fa -bed ../Annotation/mm10.RefSeq.reduced.bed12 -fo mm10.RefSeq.reduced.bed12.fa.t
-cat mm10.RefSeq.reduced.bed12.fa.t|sed 's/::.*//' > mm10.RefSeq.reduced.bed12.fa
-rm -rf mm10.RefSeq.reduced.bed12.fa.t
-```
+# hg38
+mkdir hg38 # directory to store the index
+cd hg38
+# download the reference file for hg38 from gencode
+wget https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_38/gencode.v38.transcripts.fa.gz
+gunzip -c gencode.v38.transcripts.fa.gz > gencode.v38.transcripts.fa
+# make hisat index
+hisat2-build -f gencode.v38.transcripts.fa genome # this requires significant RAM
+# remove reference files
+rm gencode.v38.transcripts.fa.gz
+rm gencode.v38.transcripts.fa
+cd ..
 
-2c, Set up index files:
-```
-mkdir PipelineHomeDir/mm10/Index
-cd PipelineHomeDir/mm10/Index
-
-#STAR index:
-mkdir STARIndex
-STAR --runMode genomeGenerate --genomeDir STARIndex --genomeFastaFiles ../Sequence/mm10.fa --sjdbGTFfile ../Annotation/mm10.RefSeq.reduced.bed12.geneid.gtf --sjdbOverhang 100
-
-#salmon index (SalmonIndex directory will be created automatically):
-#Genome FASTA index fai file will also be generated
-salmon index -t ../Sequence/mm10.RefSeq.reduced.bed12.fa -i SalmonIndex --type quasi -k 31
-#For newer version of salmon, use:
-salmon index -t ../Sequence/mm10.RefSeq.reduced.bed12.fa -i SalmonIndex
-#Optional: if you would like to include transposon consensus sequences, you can also add the following index:
-cat ../Sequence/mm10.RefSeq.reduced.bed12.fa ../Sequence/mm10.TE.fa > ../Sequence/mm10.RefSeq.reduced.bed12.WithTE.fa
-salmon index -t ../Sequence/mm10.RefSeq.reduced.bed12.WithTE.fa -i SalmonIndexWithTE --type puff -k 31 --keepDuplicates
-cd ../Annotation
-cat mm10.uniqMatching.txt TE.list > mm10.uniqMatchingWithTE.txt   #This file will be used in DESeq2 analysis when importing salmon results
-
-#rRNA bowtie2 index:
-mkdir rRNAIndex
-bowtie2-build ../Sequence/mm10.rRNA.fa ./rRNAIndex/rRNAIndex
+# mm10
+mkdir mm10 # directory to store the index
+cd mm10
+# download the reference file for hg38 from gencode
+wget https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_mouse/release_M10/GRCm38.p4.genome.fa.gz
+gunzip -c GRCm38.p4.genome.fa.gz > GRCm38.p4.genome.fa
+# make hisat index
+hisat2-build -f GRCm38.p4.genome.fa genome # this requires significant RAM
+# remove reference files
+rm GRCm38.p4.genome.fa.gz
+rm GRCm38.p4.genome.fa
 ```
 
-4, Add executable permissions
+The above script will build hisat2 index in RNAseqPE/hisat2Index/. This script is included in RNAseqPE/hisat2Index/hisat2Index.sh for easy reference
 
-```
-chmod +x PipeRNAseq.sh
-chmod +x ./bin/bedGraphToBigWig
-```
+Note the building hisat2 index is RAM and time consuming. please allocate enough resources.
 
-## Pipeline components
+To use the index:
 ```
-PipelineHomeDir/
-    ├── PipeRNAseq.sh
-    ├── bin/
-    └── mm10/
-      └── Annotation/
-        ├── mm10.RefSeq.reduced.bed12
-        ├── mm10.RefSeq.reduced.mRNA.bed12
-        ├── mm10.RefSeq.reduced.bed12.geneid.gtf
-        └── mm10.uniqMatching.txt
-      └── Index/
-        ├── rRNAIndex/
-        ├── SalmonIndex/
-        └── STARIndex/
-      └── Sequence/
-        ├── mm10.fa
-        ├── mm10.fai
-        ├── mm10.ChromInfo.txt
-        ├── mm10.rRNA.fa
-        └── mm10.RefSeq.reduced.bed12.fa
-    └── hg38/
-       ...
+RNAseqPE.sh -g hg38
 ```
 
-Notes: 
+5, Download GTF annotation for featureCounts
 
-1, For Annotation folder, download GTF file from UCSC table browser. `reduced`: Only one location was chosen when one gene duplicates at multiple genomic loci. For more details about preprocessing the genome annotation files, see the [Preprocessing tutorial](https://github.com/sunyumail93/PipeRNAseq/blob/master/preprocessing/Preprocessing.md).
+GTF annotations can be downloaded from UCSC, gencode, ensemble .....
+```
+# download GFT for hg38 and mm10
+cd /Where RNAseqPE is/RNAseqPE/GTFs/
+############## download GTF #############
+# hg38
+wget https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_38/gencode.v38.annotation.gtf.gz
+gunzip -c gencode.v38.annotation.gtf.gz >gencode.v38.annotation.gtf
+rm gencode.v38.annotation.gtf.gz
 
-2, `uniqMatching.txt` file contains one-to-one matching from transcript to gene name.
+# mm10
+wget https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_mouse/release_M10/gencode.vM10.annotation.gtf.gz
+gunzip -c gencode.vM10.annotation.gtf.gz >gencode.vM10.annotation.gtf
+rm gencode.vM10.annotation.gtf.gz
+```
 
-3, For Index folder, indexes are not included in this github directory, but need to be created during set up.
-
-4, For Sequence folder, `RefSeq.reduced.bed12.fa` was converted from `RefSeq.reduced.bed12` file using bedtools, and removed two rRNA genes (rRNA affects salmon quantification TPM). `genome.fa` and `ChromInfo.txt` files need to be downloaded from UCSC goldenpath. The fai index file is not required now sine it will be generated by samtools when needed.
+To use the index:
+```
+RNAseqPE.sh --GTF gencode.vM10.annotation.gtf
+```
 
 ## Usage
 
-Type the pipeline name, then you will see the manual page:
+For the manual page:
 
 ```
-PipeRNAseq.sh
+RNAseqPE.sh
+RNAseqPE.sh --help
 ```
 
 Manual page:
@@ -158,147 +131,79 @@ Manual page:
 
 ## Examples
 
-A regular run using mostly default parameters:
-
+A regular run for raw RNAseq data from human
 ```
-#Single-end RNAseq
-PipeRNAseq.sh -i Data.fastq.gz -g mm10
-#Paired-end RNAseq
-PipeRNAseq.sh -l Data.R1.fastq.gz -r Data.R2.fastq.gz -g mm10
-```
-
-More parameters used, not run fastqc, run featureCounts using unique mapping reads (to pair with an Riboseq data), and generate bigWig tracks:
-```
-PipeRNAseq.sh -l Data.R1.fastq.gz -r Data.R2.fastq.gz -g mm10 -noqc -p 4 -pairrpf -bigWig
-```
-
-## Run a real data to test the pipeline
-
-### 1, Download data
- 
-Use a public dataset: [GEO SRA: SRR10446759](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSM4160756)
-
-`fastq-dump` is part of [NCBI SRA Toolkit](https://trace.ncbi.nlm.nih.gov/Traces/sra/sra.cgi?view=software):
-
-```
-#For single-end data
-fastq-dump --split-3 SRR10446770
-gzip SRR10446770.fastq
-
-#For paired-end data
-fastq-dump --split-3 SRR12990746
-mv SRR12990746_1.fastq SRR12990746.R1.fastq
-mv SRR12990746_2.fastq SRR12990746.R2.fastq
-gzip SRR12990746*
-```
-
-### 2, Run PipeRNAseq.sh pipeline:
-
-```
-PipeRNAseq.sh -i SRR10446770.fastq.gz -g mm10 -p 8
-PipeRNAseq.sh -l SRR12990746.R1.fastq.gz -r SRR12990746.R2.fastq.gz -g mm10 -p 8
-```
-
-### 3, Loop over multiple datasets
-
-If you have multiple RNAseq data to process, first write a loop to put each data into a separate folder, then submit PipeRNAseq.sh within each folder.
-
-```
-#Original data hierarchy
+# Raw paired-end RNAseq data hierarchy
 RNAseq/
     ├── Data1.RNAseq.R1.fastq.gz
     ├── Data1.RNAseq.R2.fastq.gz
     ├── Data2.RNAseq.R1.fastq.gz
     └── Data2.RNAseq.R2.fastq.gz
-for i in `for name in *R?.fastq.gz*;do echo ${name%.R*};done|uniq`;do echo $i;mkdir $i;done
-for name in *RNAseq;do echo $name;mv $name.R?.fastq.gz $name/;done
 
-#After running the above two commands:
+# rename the raw sequencing files to get recognized by RNAseqPE
 RNAseq/
-    ├── Data1.RNAseq
-        ├── Data1.RNAseq.R1.fastq.gz
-        └── Data1.RNAseq.R2.fastq.gz
-    └── Data2.RNAseq
-        ├── Data1.RNAseq.R1.fastq.gz
-        └── Data1.RNAseq.R2.fastq.gz
-        
-#Finally submit pipeline:
-#If you are running this on cluster, better to create a sbatch script using this loop, then submit them to run parallelly.
-for name in *Data;do echo $name;cd $name;PipeRNAseq.sh -l $name.R1.fastq.gz -r $name.R2.fastq.gz -g mm10 -p 8 -bigWig;cd ../;done
+    ├── Data1.RNAseq_1.fastq.gz
+    ├── Data1.RNAseq_2.fastq.gz
+    ├── Data2.RNAseq_1.fastq.gz
+    └── Data2.RNAseq_2.fastq.gz
 
-#After the pipeline finishes, you will get a list of outputs:
-RNAseq/
-    ├── Data1.RNAseq/
-        ├── fastqc/
-            ├── Data1.RNAseq.fastqc.log
-            ├── Data1.RNAseq.R1_fastqc.html
-            ├── Data1.RNAseq.R1_fastqc.zip
-            ├── Data1.RNAseq.R2_fastqc.html
-            └── Data1.RNAseq.R2_fastqc.zip
-        ├── feature_counts/
-            ├── Data1.RNAseq.mm10.featureCounts.FullTable.txt
-            ├── Data1.RNAseq.mm10.featureCounts.FullTable.txt.summary          #FullTable.txt is the original output generated by featureCounts
-            ├── Data1.RNAseq.mm10.featureCounts.gene.txt                       #This output file, containing gene length and raw counts, is sufficient for regular gene expression analysis
-            ├── Data1.RNAseq.mm10.featureCounts.log
-            ├── Data1.RNAseq.mm10.featureCounts.unique.All.CDS.gene.txt        #Only use unique mapping reads to count, only on mRNA CDS and lncRNA full length regions. 
-            ├                                                                  #This is to pair with a Riboseq data
-            ├── Data1.RNAseq.mm10.featureCounts.unique.FullTable.txt
-            ├── Data1.RNAseq.mm10.featureCounts.unique.FullTable.txt.summary
-            ├── Data1.RNAseq.mm10.featureCounts.unique.gene.txt
-            ├── Data1.RNAseq.mm10.featureCounts.unique.lncRNA.gene.txt
-            ├── Data1.RNAseq.mm10.featureCounts.unique.log
-            ├── Data1.RNAseq.mm10.featureCounts.unique.mRNA.CDS.FullTable.txt
-            ├── Data1.RNAseq.mm10.featureCounts.unique.mRNA.CDS.FullTable.txt.summary
-            ├── Data1.RNAseq.mm10.featureCounts.unique.mRNA.CDS.gene.txt
-            └── Data1.RNAseq.mm10.featureCounts.unique.mRNA.CDS.log
-        ├── genome_mapping/
-            ├── Data1.RNAseq.mm10.Log.final.out
-            ├── Data1.RNAseq.mm10.Log.out
-            ├── Data1.RNAseq.mm10.Log.progress.out
-            ├── Data1.RNAseq.mm10.SJ.out.tab
-            ├── Data1.RNAseq.mm10.sorted.bam                     #bam alignment file
-            ├── Data1.RNAseq.mm10.sorted.bam.bai                       
-            ├── Data1.RNAseq.mm10.sorted.unique.bam              #Unique mapping reads only
-            ├── Data1.RNAseq.mm10.sorted.unique.bam.bai
-            ├── Data1.RNAseq.rRNA.log
-            └── Data1.RNAseq.STAR.log
-        ├── Data1.RNAseq.R1.fastq.gz
-        ├── Data1.RNAseq.R2.fastq.gz
-        ├── Data1.RNAseq.summary
-        ├── salmon_results/
-            ├── Data1.RNAseq.mm10.quant.sf                        #salmon quantification result. Can be imported to DESeq2 using tximport
-            ├── Data1.RNAseq.mm10.salmon.log
-            └── Data1.RNAseq.salmon/
-        ├── salmonWithTE_results
-            ├── Data1.RNAseq.mm10.salmonWithTE.log
-            ├── Data1.RNAseq.mm10.WithTE.quant.sf                 #salmon quantification including TE
-            └── Data1.RNAseq.salmonWithTE/
-        └── tracks
-            ├── Data1.RNAseq.mm10.sorted.bedGraph.bw              #bigWig track for un-stranded RNAseq
-            ├── Data1.RNAseq.mm10.sorted.minus.bedGraph.bw        #bigWig track files for stranded RNAseq
-            └── Data1.RNAseq.mm10.sorted.plus.bedGraph.bw
-    └── Data2.RNAseq/
-        ...
+# Run RNAseqPE
+RNAseqPE.sh -i Data1.RNAseq Data2.RNAseq
+            -a /scratch/fjiang7/adapters/novogene.fa
+            -t /software/trimmomatic/0.36/trimmomatic-0.36.jar
+            --trim "PE -threads 16 -phred33"
+            -C ":2:30:10 LEADING:3 TRAILING:3 SLIDINGWINDOW:5:25 MINLEN:32 HEADCROP:0"
+            -h "-p 24 -x"
+            -g mm10
+            --GTF gencode.vM10.annotation.gtf
+            -f "-T 10 -g gene_name -B -C -p --ignoreDup --fracOverlap 0.1"
+            -o OutputPath
+```
 
-#You can also run MultiQC under the project directory (outside all Data.RNAseq folders) to summarize the results:
-#See more details: https://multiqc.info/
-multiqc .
+After the pipeline finishes, you will get a list of outputs:
+```
+OutputPath/
+    ├── fastqc_beofore/       # fastqc reports for raw sequencing data
+        ├── Data1.RNAseq_1.fastq.html
+        ├── Data1.RNAseq_1.fastq.zip
+        ├── Data1.RNAseq_2.fastq.html
+        ├── Data1.RNAseq_2.fastq.zip
+        ├── Data2.RNAseq_1.fastq.html
+        ├── Data2.RNAseq_1.fastq.zip
+        ├── Data2.RNAseq_2.fastq.html
+        ├── Data2.RNAseq_2.fastq.zip
+     ├── fastqc_beofore/      # fastqc reports for paired data after trimming
+        ├── Data1.RNAseq_1.tmp.fastq.html
+        ├── Data1.RNAseq_1.tmp.fastq.zip
+        ├── Data1.RNAseq_2.tmp.fastq.html
+        ├── Data1.RNAseq_2.tmp.fastq.zip
+        ├── Data2.RNAseq_1.tmp.fastq.html
+        ├── Data2.RNAseq_1.tmp.fastq.zip
+        ├── Data2.RNAseq_2.tmp.fastq.html
+        ├── Data2.RNAseq_2.tmp.fastq.zip
+     ├── trimmed_data/        # trimmed sequencing data
+        ├── Data1.RNAseq_1.tmp.fq.gz
+        ├── Data1.RNAseq_1.tmu.fq.gz
+        ├── Data1.RNAseq_2.tmp.fq.gz
+        ├── Data1.RNAseq_2.tmu.fq.gz
+        ├── Data2.RNAseq_1.tmp.fq.gz
+        ├── Data2.RNAseq_1.tmu.fq.gz
+        ├── Data2.RNAseq_2.tmp.fq.gz
+        ├── Data2.RNAseq_2.tmu.fq.gz
+     ├── mapped_data/        # mapped sequencing data
+        ├── Data1.RNAseq.bam
+        ├── Data1.RNAseq_mapped.bam
+        ├── Data1.RNAseq_mapped.sort.bam
+        ├── Data1.RNAseq_mapped.sort.bam.bai
+        ├── Data2.RNAseq.bam
+        ├── Data2.RNAseq_mapped.bam
+        ├── Data2.RNAseq_mapped.sort.bam
+        ├── Data2.RNAseq_mapped.sort.bam.bai
+     ├── raw_counts/         # raw featurecounts for sequencing data
+        ├── Data1.RNAseq.txt
+        ├── Data1.RNAseq.txt.summary
+        ├── Data2.RNAseq.txt
+        ├── Data2.RNAseq.txt.summary
 
 ```
 
-## Important results
-
-1, Gene and transcript quantification results
-```
-Data.mm10.featureCounts.gene.txt                                   #All genes
-Data.mm10.featureCounts.unique.All.CDS.gene.txt                    #All genes, mRNA CDS region counts (full length for lncRNA)
-Data.mm10.quant.sf                                                 #Salmon quantification of all transcirpts
-Data.mm10.WithTE.quant.sf                                          #Salmon quantification of all transcirpts + transposons
-```
-
-2, bigWig Tracks
-```
-Data.mm10.sorted.bedGraph.bw
-Data.mm10.sorted.plus.bedGraph.bw
-Data.mm10.sorted.minus.bedGraph.bw
-```
