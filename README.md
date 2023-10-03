@@ -199,11 +199,21 @@ OutputPath/
         ├── Data2.RNAseq_mapped.bam
         ├── Data2.RNAseq_mapped.sort.bam
         ├── Data2.RNAseq_mapped.sort.bam.bai
+        ├── featureCounts.log   
      ├── raw_counts/         # raw featurecounts for sequencing data
         ├── Data1.RNAseq.txt
         ├── Data1.RNAseq.txt.summary
         ├── Data2.RNAseq.txt
         ├── Data2.RNAseq.txt.summary
-
+     ├── multi_fastqc_before_data         
+     ├── multi_fastqc_before_data.html  # multiqc report for untrimmed data 
+     ├── multi_fastqc_after_data         
+     ├── multi_fastqc_after_data.html   # multiqc report for trimmed data 
+     ├── trimmomatic.log
+     ├── hisat2.log
+     ├── sample.csv                     # list of input sequencing data
+     ├── hisat2.log
+     ├── MappingReport.txt              # A report for mapping quality 
 ```
+Raw gene counts are stored in **raw_count** and can be used for downstream DE analysis with [RNAseqFast](https://github.com/FengJiang94/RNAseqFast)
 
