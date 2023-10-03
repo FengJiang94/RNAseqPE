@@ -52,7 +52,9 @@ chmod +x /Where RNAseqPE is/RNAseqPE/hisat2Index/hisat2Index.sh
 ```
 
 4, Set up index files for genome mapping
+
 To use RNAseqPE, hisat2 index is required to map reads to the corresponding genome.
+
 Here is an example to build hisat2 index for hg38 and mm10
 ```
 # build hisat2 index in RNAseqPE/hisat2Index
