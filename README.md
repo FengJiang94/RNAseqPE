@@ -45,8 +45,18 @@ git clone https://github.com/fengjiang94/RNAseqPE.git
 export PATH=$PATH:/Where RNAseqPE is/RNAseqPE
 ```
 
-3, Set up index files for genome mapping
-hisat2 is used for mapping in this pipeline
+3, Add executable permissions
+
+```
+chmod +x /Where RNAseqPE is/RNAseqPE/RNAseqPE.sh
+chmod +x /Where RNAseqPE is/RNAseqPE/hisat2Index/hisat2Index.sh
+```
+
+4, Set up index files for genome mapping
+To use RNAseqPE, hisat2 index is required to map reads to the corresponding genome 
+
+
+is used for mapping in this pipeline
 
 2a, Download whole genome fasta sequence and chromosome sizes from UCSC goldenpath:
 
