@@ -115,7 +115,7 @@ gunzip -c gencode.vM10.annotation.gtf.gz >gencode.vM10.annotation.gtf
 rm gencode.vM10.annotation.gtf.gz
 ```
 
-To use the index:
+To use the annotation:
 ```
 RNAseqPE.sh --GTF gencode.vM10.annotation.gtf
 ```
