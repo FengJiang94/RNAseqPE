@@ -1,0 +1,271 @@
+
+<!DOCTYPE html>
+<html lang="en-US">
+  <head>
+    <meta name="google-site-verification" content="ptuXe7ex0jPvowLOm_BRWnxrV-EfJeXDTA7zF0aLuzk" />
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+<!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>RNAseqPE | A script for paired end RNA-seq processing</title>
+<meta name="generator" content="Jekyll v3.9.3" />
+<meta property="og:title" content="RNAseqPE" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="A script for paired end RNA-seq processing" />
+<meta property="og:description" content="A script for paired end RNA-seq processing" />
+<link rel="canonical" href="https://fengjiang94.github.io/RNAseqPE/" />
+<meta property="og:url" content="https://fengjiang94.github.io/RNAseqPE/" />
+<meta property="og:site_name" content="RNAseqPE" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="RNAseqPE" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebSite","description":"A script for paired end RNA-seq processing","headline":"RNAseqPE","name":"RNAseqPE","url":"https://fengjiang94.github.io/RNAseqPE/"}</script>
+<!-- End Jekyll SEO tag -->
+
+    <link rel="stylesheet" href="/RNAseqPE/assets/css/style.css?v=e04b28ae9c20a1251dfef39454d40165d9d3a82c">
+    <!-- start custom head snippets, customize with your own _includes/head-custom.html file -->
+
+<!-- Setup Google Analytics -->
+
+
+
+<!-- You can set your favicon here -->
+<!-- link rel="shortcut icon" type="image/x-icon" href="/RNAseqPE/favicon.ico" -->
+
+<!-- end custom head snippets -->
+
+  </head>
+  <body>
+    <div class="container-lg px-3 my-5 markdown-body">
+      
+
+      <h1 id="rnaseqpe">RNAseqPE</h1>
+<p>A script for paired end RNA-seq processing</p>
+
+<p>This pipeline was developed to analyze sequencing data in the following publication, please consider citing it:</p>
+
+<ol>
+  <li>Jiang, F., Hedaya, O.M., Khor, E., Wu, J., Auguste, M., &amp; Yao, P. (2023). <a href="https://academic.oup.com/nar/article/51/11/5831/7147500">RNA binding protein PRRC2B mediates translation of specific mRNAs and regulates cell cycle progression</a>. <em>Nucleic Acids Research</em>, 51(11), 5831–5846</li>
+</ol>
+
+<h2 id="software-prerequisites">Software prerequisites</h2>
+<p>This pipeline is designed to run on Linux servers, and requires the following software:</p>
+
+<p>They need to be installed and added to the $PATH before using the pipeline.</p>
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>hisat2
+samtools
+featureCount (from Subread)
+fastqc 
+multiqc
+</code></pre></div></div>
+
+<p>The above software can be installed using conda, as below:</p>
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>#Create RNAseqPE environment
+conda create --name pipernaseq
+conda install -n RNAseqPE -c bioconda hisat2
+conda install -n RNAseqPE -c bioconda samtools
+conda install -n RNAseqPE -c bioconda subread
+conda install -n RNAseqPE -c bioconda fastqc
+conda install -n RNAseqPE -c bioconda git
+
+#Create another env for multiqc, due to the conflict with pipernaseq:
+conda create --name multiqc_env
+conda install -n RNAseqPE -c bioconda multiqc
+</code></pre></div></div>
+
+<h2 id="pipeline-setup">Pipeline setup</h2>
+
+<p>1, Download scripts from github to Linux server:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>git clone https://github.com/fengjiang94/RNAseqPE.git
+</code></pre></div></div>
+
+<ol>
+  <li>add RNAseqPE to $path
+    <div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>export PATH=$PATH:/Where RNAseqPE is/RNAseqPE
+</code></pre></div>    </div>
+  </li>
+</ol>
+
+<p>3, Add executable permissions</p>
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>chmod +x /Where RNAseqPE is/RNAseqPE/RNAseqPE.sh
+chmod +x /Where RNAseqPE is/RNAseqPE/hisat2Index/hisat2Index.sh
+</code></pre></div></div>
+
+<p>4, Set up index files for genome mapping</p>
+
+<p>To use RNAseqPE, hisat2 index is required to map reads to the corresponding genome.</p>
+
+<p>Here is an example to build hisat2 index for hg38 and mm10</p>
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code># build hisat2 index in RNAseqPE/hisat2Index
+cd /Where RNAseqPE is/RNAseqPE/hisat2Index/
+
+# hg38
+mkdir hg38 # directory to store the index
+cd hg38
+# download the reference file for hg38 from gencode
+wget https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_38/gencode.v38.transcripts.fa.gz
+gunzip -c gencode.v38.transcripts.fa.gz &gt; gencode.v38.transcripts.fa
+# make hisat index
+hisat2-build -f gencode.v38.transcripts.fa genome # this requires significant RAM
+# remove reference files
+rm gencode.v38.transcripts.fa.gz
+rm gencode.v38.transcripts.fa
+cd ..
+
+# mm10
+mkdir mm10 # directory to store the index
+cd mm10
+# download the reference file for hg38 from gencode
+wget https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_mouse/release_M10/GRCm38.p4.genome.fa.gz
+gunzip -c GRCm38.p4.genome.fa.gz &gt; GRCm38.p4.genome.fa
+# make hisat index
+hisat2-build -f GRCm38.p4.genome.fa genome # this requires significant RAM
+# remove reference files
+rm GRCm38.p4.genome.fa.gz
+rm GRCm38.p4.genome.fa
+</code></pre></div></div>
+
+<p>The above script will build hisat2 index in RNAseqPE/hisat2Index/.</p>
+
+<p>This script is included in RNAseqPE/hisat2Index/hisat2Index.sh for easy reference.</p>
+
+<p>Note that building hisat2 index is RAM and time consuming. please allocate enough resources.</p>
+
+<p>To use the index:</p>
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>RNAseqPE.sh -g hg38
+</code></pre></div></div>
+
+<p>5, Download GTF annotation for featureCounts</p>
+
+<p>GTF annotations can be downloaded from UCSC, gencode, ensemble …..</p>
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code># download GFT for hg38 and mm10
+cd /Where RNAseqPE is/RNAseqPE/GTFs/
+############## download GTF #############
+# hg38
+wget https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_38/gencode.v38.annotation.gtf.gz
+gunzip -c gencode.v38.annotation.gtf.gz &gt;gencode.v38.annotation.gtf
+rm gencode.v38.annotation.gtf.gz
+
+# mm10
+wget https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_mouse/release_M10/gencode.vM10.annotation.gtf.gz
+gunzip -c gencode.vM10.annotation.gtf.gz &gt;gencode.vM10.annotation.gtf
+rm gencode.vM10.annotation.gtf.gz
+</code></pre></div></div>
+
+<p>To use the annotation:</p>
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>RNAseqPE.sh --GTF gencode.vM10.annotation.gtf
+</code></pre></div></div>
+
+<h2 id="usage">Usage</h2>
+
+<p>For the manual page:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>RNAseqPE.sh
+RNAseqPE.sh --help
+</code></pre></div></div>
+
+<p>Manual page:</p>
+
+<p><img src="/RNAseqPE/images/Usages.png" alt="" /></p>
+
+<h2 id="examples">Examples</h2>
+
+<p>A regular run for raw RNAseq data from human</p>
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code># Raw paired-end RNAseq data hierarchy
+RNAseq/
+    ├── Data1.RNAseq.R1.fastq.gz
+    ├── Data1.RNAseq.R2.fastq.gz
+    ├── Data2.RNAseq.R1.fastq.gz
+    └── Data2.RNAseq.R2.fastq.gz
+
+# rename the raw sequencing files to get recognized by RNAseqPE
+RNAseq/
+    ├── Data1.RNAseq_1.fastq.gz
+    ├── Data1.RNAseq_2.fastq.gz
+    ├── Data2.RNAseq_1.fastq.gz
+    └── Data2.RNAseq_2.fastq.gz
+
+# Run RNAseqPE
+RNAseqPE.sh -i Data1.RNAseq Data2.RNAseq
+            -a /scratch/fjiang7/adapters/novogene.fa
+            -t /software/trimmomatic/0.36/trimmomatic-0.36.jar
+            --trim "PE -threads 16 -phred33"
+            -C ":2:30:10 LEADING:3 TRAILING:3 SLIDINGWINDOW:5:25 MINLEN:32 HEADCROP:0"
+            -h "-p 24 -x"
+            -g mm10
+            --GTF gencode.vM10.annotation.gtf
+            -f "-T 10 -g gene_name -B -C -p --ignoreDup --fracOverlap 0.1"
+            -o OutputPath
+</code></pre></div></div>
+
+<p>After the pipeline finishes, you will get a list of outputs:</p>
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>OutputPath/
+    ├── fastqc_beofore/       # fastqc reports for raw sequencing data
+        ├── Data1.RNAseq_1.fastq.html
+        ├── Data1.RNAseq_1.fastq.zip
+        ├── Data1.RNAseq_2.fastq.html
+        ├── Data1.RNAseq_2.fastq.zip
+        ├── Data2.RNAseq_1.fastq.html
+        ├── Data2.RNAseq_1.fastq.zip
+        ├── Data2.RNAseq_2.fastq.html
+        ├── Data2.RNAseq_2.fastq.zip
+     ├── fastqc_beofore/      # fastqc reports for paired data after trimming
+        ├── Data1.RNAseq_1.tmp.fastq.html
+        ├── Data1.RNAseq_1.tmp.fastq.zip
+        ├── Data1.RNAseq_2.tmp.fastq.html
+        ├── Data1.RNAseq_2.tmp.fastq.zip
+        ├── Data2.RNAseq_1.tmp.fastq.html
+        ├── Data2.RNAseq_1.tmp.fastq.zip
+        ├── Data2.RNAseq_2.tmp.fastq.html
+        ├── Data2.RNAseq_2.tmp.fastq.zip
+     ├── trimmed_data/        # trimmed sequencing data
+        ├── Data1.RNAseq_1.tmp.fq.gz
+        ├── Data1.RNAseq_1.tmu.fq.gz
+        ├── Data1.RNAseq_2.tmp.fq.gz
+        ├── Data1.RNAseq_2.tmu.fq.gz
+        ├── Data2.RNAseq_1.tmp.fq.gz
+        ├── Data2.RNAseq_1.tmu.fq.gz
+        ├── Data2.RNAseq_2.tmp.fq.gz
+        ├── Data2.RNAseq_2.tmu.fq.gz
+     ├── mapped_data/        # mapped sequencing data
+        ├── Data1.RNAseq.bam
+        ├── Data1.RNAseq_mapped.bam
+        ├── Data1.RNAseq_mapped.sort.bam
+        ├── Data1.RNAseq_mapped.sort.bam.bai
+        ├── Data2.RNAseq.bam
+        ├── Data2.RNAseq_mapped.bam
+        ├── Data2.RNAseq_mapped.sort.bam
+        ├── Data2.RNAseq_mapped.sort.bam.bai
+        ├── featureCounts.log   
+     ├── raw_counts/         # raw featurecounts for sequencing data
+        ├── Data1.RNAseq.txt
+        ├── Data1.RNAseq.txt.summary
+        ├── Data2.RNAseq.txt
+        ├── Data2.RNAseq.txt.summary
+     ├── multi_fastqc_before_data         
+     ├── multi_fastqc_before_data.html  # multiqc report for untrimmed data 
+     ├── multi_fastqc_after_data         
+     ├── multi_fastqc_after_data.html   # multiqc report for trimmed data 
+     ├── trimmomatic.log
+     ├── hisat2.log
+     ├── sample.csv                     # list of input sequencing data
+     ├── hisat2.log
+     ├── MappingReport.txt              # A report for mapping quality 
+</code></pre></div></div>
+<p>Raw gene counts are stored in <strong>raw_count</strong> and can be used for downstream DE analysis with <a href="https://github.com/FengJiang94/RNAseqFast">RNAseqFast</a></p>
+
+
+
+      
+      <div class="footer border-top border-gray-light mt-5 pt-3 text-right text-gray">
+        This site is open source. <a href="https://github.com/FengJiang94/RNAseqPE/edit/master/README.md">Improve this page</a>.
+      </div>
+      
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/anchor-js/4.1.0/anchor.min.js" integrity="sha256-lZaRhKri35AyJSypXXs4o6OPFTbTmUoltBbDCbdzegg=" crossorigin="anonymous"></script>
+    <script>anchors.add();</script>
+  </body>
+</html>
